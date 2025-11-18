@@ -8,7 +8,7 @@ pygame.init()
 
 # Game settings
 CELL_SIZE = 40
-GRID_WIDTH = 20
+GRID_WIDTH = 19
 GRID_HEIGHT = 15
 SCREEN_WIDTH = CELL_SIZE * GRID_WIDTH
 SCREEN_HEIGHT = CELL_SIZE * GRID_HEIGHT
@@ -40,13 +40,18 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Snake Game")
 
 # Snake setup
-snake = [(5, 5)]
+snake = [(9, 7)]
 direction = (1, 0)
 direction_queue = deque()
 
 
 # Food setup
-food = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
+while True:
+    food = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
+    if food not in snake:
+        break
+
+
 
 
 # Functions
@@ -109,7 +114,16 @@ while running:
 
         # Check for food
         if new_head == food:
-            food = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
+            # Place the apple on an unoccupied spot is possible
+            if len(snake) == GRID_WIDTH * GRID_HEIGHT:
+                # Snake has filled the board — game won
+                running = False
+            else:
+                while True:
+                    new_food = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
+                    if new_food not in snake:
+                        food = new_food
+                        break
         else:
             snake.pop()
 
@@ -133,16 +147,9 @@ while running:
             )
 
 
-    # Place the apple on an unoccupied spot is possible
-    if len(snake) == GRID_WIDTH * GRID_HEIGHT:
-        # Snake has filled the board — game won
-        running = False
-    else:
-        while True:
-            new_food = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
-            if new_food not in snake:
-                food = new_food
-                break
+    
+    
+    screen.blit(apple_img, (food[0] * CELL_SIZE, food[1] * CELL_SIZE))
 
 
     for i, (x, y) in enumerate(snake):
