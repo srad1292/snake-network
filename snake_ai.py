@@ -7,6 +7,11 @@ from tensorflow.keras import layers
 import numpy as np
 
 
+# For quicker training without visuals
+HEADLESS = True  # Set to False to re-enable visuals
+MAX_GAMES = 500
+game_count = 0
+scores = []
 
 # Initialize Pygame
 pygame.init()
@@ -83,7 +88,7 @@ class Agent:
             self.model.compile(optimizer='adam', loss='mse')
         self.memory = deque(maxlen=100_000)
         self.gamma = 0.9  # discount rate
-        self.epsilon = 1.0  # exploration rate
+        self.epsilon = 1.0  # exploration rate - set based on where last run ended or at 1.0 for fresh agent
         self.epsilon_decay = 0.995
         self.epsilon_min = 0.01
         self.batch_size = 100
@@ -128,8 +133,6 @@ class Agent:
 
             states.append(state)
             targets.append(target_f)
-
-        self.model.fit(np.array(states), np.array(targets), epochs=1, verbose=0)
 
         # Decay exploration
         if self.epsilon > self.epsilon_min:
@@ -197,7 +200,8 @@ running = True
 game_started = False
 
 while running:
-    clock.tick(FPS)
+    if not HEADLESS:
+        clock.tick(FPS)
 
     # Handle events
     for event in pygame.event.get():
@@ -205,6 +209,8 @@ while running:
             running = False
     
     state = get_state(snake, food, direction)
+    prev_distance = abs(food[0] - snake[0][0]) + abs(food[1] - snake[0][1])
+
     action = agent.get_action(state)
     direction = apply_action_to_direction(action, direction)
     game_started = True
@@ -222,6 +228,9 @@ while running:
         # Move snake
         head_x, head_y = snake[0]
         new_head = (head_x + direction[0], head_y + direction[1])
+        new_distance = abs(food[0] - new_head[0]) + abs(food[1] - new_head[1])
+        
+
         snake.insert(0, new_head)
         moves_left = moves_left - 1
 
@@ -252,20 +261,24 @@ while running:
     reward = 0
     done = False
 
+    
+
     if new_head == food:
-        reward = 10
-    elif game_won:
         reward = 20
+    elif game_won:
+        reward = 100
         done = True
     elif crashed:
-        reward = -10
+        reward = -20
         done = True
     elif moves_left == 0:
         reward = -8
         done = True
         crashed = True 
+    elif new_distance < prev_distance:
+        reward += 0.3  # small bonus for moving closer
     else:
-        reward = -0.1  # small penalty to encourage faster food collection
+        reward -= 0.3
 
     next_state = get_state(snake, food, direction)
 
@@ -274,12 +287,19 @@ while running:
 
 
     if crashed or game_won:
-        agent.train_long_memory()
         score = len(snake) - 1  # or however you define score
-        with open("scores.txt", "a") as f:
-            f.write(f"{score}\n")
+        scores.append(score)
 
-        agent.model.save("snake_model.keras")
+
+        game_count += 1
+        print(f"Game {game_count} — Score: {score} — Epsilon: {agent.epsilon:.3f}")
+        agent.train_long_memory()
+        if game_count >= MAX_GAMES:
+            agent.model.save("snake_model.keras")
+            with open("scores.txt", "a") as f:
+                for s in scores:
+                    f.write(f"{s}\n")
+            running = False
 
         max_moves = 150
         moves_left = max_moves
@@ -294,32 +314,33 @@ while running:
         continue
 
     # Draw everything
-    screen.fill(BLACK)
-    for row in range(GRID_HEIGHT):
-        for col in range(GRID_WIDTH):
-            color = BLACK if (row + col) % 2 == 0 else DARK_GRAY
-            pygame.draw.rect(
-                screen,
-                color,
-                pygame.Rect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
-            )
+    if not HEADLESS:
+        screen.fill(BLACK)
+        for row in range(GRID_HEIGHT):
+            for col in range(GRID_WIDTH):
+                color = BLACK if (row + col) % 2 == 0 else DARK_GRAY
+                pygame.draw.rect(
+                    screen,
+                    color,
+                    pygame.Rect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE)
+                )
 
-    
-    screen.blit(apple_img, (food[0] * CELL_SIZE, food[1] * CELL_SIZE))
+        
+        screen.blit(apple_img, (food[0] * CELL_SIZE, food[1] * CELL_SIZE))
 
 
-    for i, (x, y) in enumerate(snake):
-        if i == 0:
-            angle = get_head_rotation(direction)
-            rotated_head = pygame.transform.rotate(snake_head_img, angle)
-            screen.blit(rotated_head, (x * CELL_SIZE, y * CELL_SIZE))
+        for i, (x, y) in enumerate(snake):
+            if i == 0:
+                angle = get_head_rotation(direction)
+                rotated_head = pygame.transform.rotate(snake_head_img, angle)
+                screen.blit(rotated_head, (x * CELL_SIZE, y * CELL_SIZE))
 
-        else:
-            offset = (CELL_SIZE - body_size) // 2
-            screen.blit(snake_body_img, (x * CELL_SIZE + offset, y * CELL_SIZE + offset))
+            else:
+                offset = (CELL_SIZE - body_size) // 2
+                screen.blit(snake_body_img, (x * CELL_SIZE + offset, y * CELL_SIZE + offset))
 
-    pygame.display.set_caption(f"Snake Game — FPS: {int(clock.get_fps())} - Moves Left: {moves_left}")
+        pygame.display.set_caption(f"Snake Game — FPS: {int(clock.get_fps())} - Moves Left: {moves_left}")
 
-    pygame.display.flip()
+        pygame.display.flip()
 
 pygame.quit()
