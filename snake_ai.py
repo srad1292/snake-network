@@ -9,7 +9,7 @@ import numpy as np
 
 # For quicker training without visuals
 HEADLESS = True  # Set to False to re-enable visuals
-MAX_GAMES = 500
+MAX_GAMES = 400
 game_count = 0
 scores = []
 
@@ -88,7 +88,7 @@ class Agent:
             self.model.compile(optimizer='adam', loss='mse')
         self.memory = deque(maxlen=100_000)
         self.gamma = 0.9  # discount rate
-        self.epsilon = 1.0  # exploration rate - set based on where last run ended or at 1.0 for fresh agent
+        self.epsilon = 0.010  # exploration rate - set based on where last run ended or at 1.0 for fresh agent
         self.epsilon_decay = 0.995
         self.epsilon_min = 0.01
         self.batch_size = 100
