@@ -8,8 +8,8 @@ import numpy as np
 
 
 # For quicker training without visuals
-HEADLESS = True  # Set to False to re-enable visuals
-MAX_GAMES = 400
+HEADLESS = False  # Set to False to re-enable visuals
+MAX_GAMES = 12
 game_count = 0
 scores = []
 
